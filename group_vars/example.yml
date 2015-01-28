@@ -1,0 +1,10 @@
+---
+# Copy paste this file over all.yml and configure
+
+ssh_port: 22
+
+users:
+  - name: 'your-username'
+    full_name: 'Your Name'
+    public_keys:
+      - 'your-public-key'

@@ -1,0 +1,141 @@
+---
+# This set of tasks secure a box
+- name: ensure ansible can work with SELinux
+  yum: pkg={{ item }} state=installed
+  with_items:
+    - libselinux-python
+    - policycoreutils-python
+  tags:
+    - selinux
+    - ssh
+
+- name: ensure SELinux is configured
+  selinux: policy=targeted state=permissive
+  tags:
+    - selinux
+  notify: reboot system
+
+- name: ensure EPEL is enabled
+  yum: pkg=epel-release state=installed
+  tags:
+    - ssh
+    - firewall
+
+- name: ensure ntp is installed
+  yum: pkg=ntp state=installed
+  tags: ntp
+
+- name: ensure correct the timzone file is linked
+  file: src=/usr/share/zoneinfo/UTC dest=/etc/localtime force=yes state=link
+  notify: restart ntpd
+  tags: ntp
+
+- name: ensure ntpd is running and enabled
+  service: name=ntpd state=running enabled=yes
+  tags: ntp
+
+- name: ensure firewalld is running and enabled
+  service: name=firewalld state=running enabled=yes
+  tags:
+    - firewall
+    - ssh
+
+- name: ensure SSH user group exists
+  group: name=ssh-users state=present
+  tags: ssh
+
+- name: ensure users are created and belong to the ssh-users group
+  user: name={{ item.name }} comment="{{ item.full_name }}" groups=ssh-users append=yes state=present
+  with_items: users
+  tags:
+    - ssh
+    - users
+
+- name: ensure users public keys exist
+  authorized_key: user={{ item.0.name }} key="{{ item.1 }}" state=present
+  with_subelements:
+    - users
+    - public_keys
+  tags:
+    - ssh
+    - users
+
+- name: ensure SSH port is configured
+  lineinfile: dest=/etc/ssh/sshd_config regexp="^Port\s" line="Port {{ ssh_port }}" state=present
+  notify: restart sshd
+  tags: ssh
+
+- name: ensure a custom SSH firewalld service definition exists
+  command: cp /usr/lib/firewalld/services/ssh.xml /etc/firewalld/services/ssh.xml creates=/etc/firewalld/services/ssh.xml
+  tags:
+    - firewall
+    - ssh
+
+- name: ensure the custom SSH firewalld service has the correct port
+  lineinfile: dest=/etc/firewalld/services/ssh.xml regexp="<port\s" line='  <port protocol="tcp" port="{{ ssh_port }}"/>' state=present
+  notify: reload firewalld
+  tags:
+    - firewall
+    - ssh
+
+- name: ensure the SSH port is allowed through the firewall
+  firewalld: service=ssh permanent=true state=enabled
+  notify: reload firewalld
+  tags:
+    - firewall
+    - ssh
+
+- name: ensure that SELinux will allow the SSH port
+  shell: /usr/sbin/semanage port -a -t ssh_port_t -p tcp {{ ssh_port }} > /root/sshPolicyPort creates=/root/sshPolicyPort
+  tags:
+    - selinux
+    - ssh
+
+- name: ensure direct root SSH access is disabled
+  lineinfile: dest=/etc/ssh/sshd_config regexp="^PermitRootLogin\s" line="PermitRootLogin no" state=present
+  notify: restart sshd
+  tags: ssh
+
+- name: ensure password authenication is disabled for SSH
+  lineinfile: dest=/etc/ssh/sshd_config regexp="^PasswordAuthentication\s" line="PasswordAuthentication no" state=present
+  notify: restart sshd
+  tags: ssh
+
+- name: ensure only SSH protocol version 2 is allowed
+  lineinfile: dest=/etc/ssh/sshd_config regexp="^Protocol\s" line="Protocol 2" state=present
+  notify: restart sshd
+  tags: ssh
+
+- name: ensure only users in the ssh-users group can SSH into the box
+  lineinfile: dest=/etc/ssh/sshd_config regexp="^AllowGroups\s" line="AllowGroups ssh-users" state=present
+  notify: restart sshd
+  tags: ssh
+
+- name: ensure post-login users see the legal notice
+  copy: src=etc/motd dest=/etc/motd owner=root group=root mode=0644
+  notify: restart sshd
+  tags: ssh
+
+- name: ensure fail2ban is installed
+  yum: pkg={{ item }} state=installed
+  with_items:
+    - fail2ban-firewalld
+    - fail2ban-systemd
+  tags:
+    - ssh
+    - firewall
+
+- name: ensure fail2ban is configured
+  copy: src=etc/fail2ban/{{ item }} dest=/etc/fail2ban/{{ item }} owner=root group=root mode=0644
+  with_items:
+    - jail.local
+    - action.d/firewallcmd-ipset.local
+  tags:
+    - ssh
+    - firewall
+
+- name: ensure fail2ban is started
+  service: name=fail2ban state=started enabled=yes
+  tags:
+    - ssh
+    - firewall

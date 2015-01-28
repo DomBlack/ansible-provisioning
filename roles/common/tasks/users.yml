@@ -1,0 +1,43 @@
+---
+- name: ensure tools requied for oh-my-zsh are installed
+  yum: pkg={{ item }} state=installed
+  with_items:
+    - git
+    - zsh
+  tags:
+    - users
+    - shells
+
+- name: ensure users are created and are using ZSH
+  user: name={{ item.name }} comment="{{ item.full_name }}" shell="/bin/zsh" state=present
+  with_items: users
+  tags:
+    - users
+    - shells
+
+- name: ensure my oh-my-zsh is checked out for the user
+  git: repo="https://github.com/DomBlack/oh-my-zsh.git" dest="~{{ item.name }}/.oh-my-zsh" update=no accept_hostkey=yes recursive=yes
+  with_items: users + root_user
+  tags:
+    - users
+    - shells
+
+- name: ensure the oh-my-zsh is owned by the user
+  file: path="~{{ item.name }}/.oh-my-zsh" owner="{{ item.name }}" group="{{ item.name }}" mode=0755 state=directory recurse=yes
+  with_items: users + root_user
+  tags:
+    - users
+    - shells
+
+- name: ensure the .zshrc configs are linked for users
+  file: src="/home/{{ item.name }}/.oh-my-zsh/.zshrc" dest="/home/{{ item.name }}/.zshrc" state=link force=yes owner="{{ item.name }}" group="{{ item.name }}"
+  with_items: users
+  tags:
+    - users
+    - shells
+
+- name: ensure the .zshrc config is linked for root
+  file: src="/root/.oh-my-zsh/.zshrc" dest="/root/.zshrc" state=link force=yes owner="root" group="root"
+  tags:
+    - users
+    - shells

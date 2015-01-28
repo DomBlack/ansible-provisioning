@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>Docker</short>
+  <description>Docker Container Server.</description>
+  <port protocol="tcp" port="2376"/>
+</service>

@@ -1,0 +1,19 @@
+---
+# Run with "ansible-playbook site.yml -i production --ask-su-pass --vault-password-file ~/.vault_pass.txt"
+
+# This script assumes that you have your ssh config setup to use the correct port
+#  for the hosts being managed via this playbook.
+
+- hosts: all
+  su: yes
+  su_user: root
+  gather_facts: false
+  roles:
+    - common
+
+- hosts: docker-hosts
+  su: yes
+  su_user: root
+  gather_facts: false
+  roles:
+    - docker-host

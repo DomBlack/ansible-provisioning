@@ -1,0 +1,51 @@
+---
+
+- name: ensure docker is installed
+  yum: name=docker state=installed
+  tags: docker
+
+- name: ensure a docker user exists
+  user: name=docker home=/home/docker move_home=yes state=present
+  tags: docker
+
+- name: ensure the docker CA certifcate is present
+  copy: src=ca.crt dest=/home/docker/ca.crt owner=root group=docker mode=0640
+  notify: restart docker
+  tags: docker
+
+- name: ensure dockers server certificate is present
+  copy: src=server.crt dest=/home/docker/server.crt owner=root group=docker mode=0640
+  notify: restart docker
+  tags: docker
+
+- name: ensure dockers server key is uploaded
+  copy: content="{{ docker_server_key }}" dest=/home/docker/server.key owner=root group=root mode=0600
+  notify: restart docker
+  tags: docker
+
+- name: ensure docker is using it's home directory
+  lineinfile: dest=/etc/sysconfig/docker regexp="^OPTIONS=" line="OPTIONS=--selinux-enabled -g=/home/docker --tlsverify --tlscacert=/home/docker/ca.crt --tlscert=/home/docker/server.crt --tlskey=/home/docker/server.key -H=0.0.0.0:2376 -H fd://" state=present
+  notify: restart docker
+  tags: docker
+
+- name: ensure the firewalld service definition for docker is set
+  copy: src=etc/firewalld/services/docker.xml dest=/etc/firewalld/services/docker.xml owner=root group=root mode=0640
+  notify:
+    - reload firewalld
+    - restart docker
+  tags:
+    - docker
+    - firewall
+
+- name: ensure the firewall is allowing docker through
+  firewalld: service=docker permanent=true state=enabled
+  notify:
+    - reload firewalld
+    - restart docker
+  tags:
+    - docker
+    - firewall
+
+- name: ensure docker is started
+  service: name=docker state=started enabled=yes
+  tags: docker

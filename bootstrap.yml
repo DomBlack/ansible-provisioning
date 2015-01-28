@@ -1,0 +1,10 @@
+---
+# Run with "ansible-playbook bootstrap.yml -k -i production --vault-password-file ~/.vault_pass.txt -l $hostName"
+- hosts: all
+  remote_user: root
+  gather_facts: false
+  pre_tasks:
+    - name: ensure ansible connects to SSH on port 22
+      local_action: set_fact ansible_ssh_port=22
+  roles:
+    - common

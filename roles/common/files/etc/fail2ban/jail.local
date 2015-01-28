@@ -1,0 +1,8 @@
+[DEFAULT]
+findtime = 5400
+backend = systemd
+sender = fail2ban@localhost
+destemail = root
+
+[sshd]
+enabled = true

@@ -1,0 +1,16 @@
+---
+- include: secure-box.yml
+- include: users.yml
+
+- name: ensure basic tools are installed
+  yum: name={{ item }} state=installed
+  with_items:
+    - gcc
+    - mlocate
+    - tmux
+    - vim
+    - wget
+
+- name: ensure installed pakcages are upto date
+  yum: name=* state=latest
+  tags: update

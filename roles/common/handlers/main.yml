@@ -1,0 +1,13 @@
+---
+# file: roles/common/handlers/main.yml
+- name: reboot system
+  command: shutdown -r now "Ansible required a reboot"
+
+- name: restart ntpd
+  service: name=ntpd state=restarted
+
+- name: restart sshd
+  service: name=sshd state=restarted
+
+- name: reload firewalld
+  service: name=firewalld state=reloaded
